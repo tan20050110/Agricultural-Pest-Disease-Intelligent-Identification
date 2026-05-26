@@ -1,0 +1,41 @@
+# Python 虚拟环境
+venv/
+.venv/
+env/
+
+# Python 缓存
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+
+# Git
+.git/
+.gitignore
+
+# IDE
+.vscode/
+.idea/
+
+# 环境配置文件（通过 docker-compose 注入）
+.env
+
+# 模型文件（运行时挂载或下载）
+models/*.pt
+
+# 数据库文件
+*.db
+*.sqlite3
+
+# 日志
+*.log
+logs/
+
+# 临时文件
+tmp/
+temp/
+
+# Docker 相关
+Dockerfile
+.dockerignore
+docker-compose.yml
