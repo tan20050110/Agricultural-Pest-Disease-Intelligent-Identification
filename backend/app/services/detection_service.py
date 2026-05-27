@@ -32,6 +32,7 @@ import os
 import time
 import uuid
 import logging
+import numpy as np
 from datetime import datetime
 from pathlib import Path
 from typing import List, Optional
@@ -1087,14 +1088,28 @@ class DetectionService:
         # 生成结果文件名
         result_filename = f"result_{uuid.uuid4().hex}.jpg"
 
-        # 绘制检测框到图片
-        # results[0].plot() 返回带检测框的图片（NumPy 数组）
-        annotated_image = results[0].plot()
-
-        # 将图片从 RGB 格式转换为 BGR 格式（OpenCV 需要）
-        annotated_image_bgr = cv2.cvtColor(annotated_image, cv2.COLOR_RGB2BGR)
-
-        # 将图片编码为 JPEG 格式，获取字节数据
+        # 手动绘制检测框，Pillow 支持中文标签
+        from PIL import Image, ImageDraw, ImageFont
+        annotated_image_bgr = cv2.imread(image_path)
+        annotated_image_rgb = cv2.cvtColor(annotated_image_bgr, cv2.COLOR_BGR2RGB)
+        pil_img = Image.fromarray(annotated_image_rgb)
+        draw = ImageDraw.Draw(pil_img)
+        try:
+            font = ImageFont.truetype("C:/Windows/Fonts/simhei.ttf", 18)
+        except Exception:
+            try:
+                font = ImageFont.truetype("C:/Windows/Fonts/msyh.ttf", 18)
+            except Exception:
+                font = ImageFont.load_default()
+        for box in boxes:
+            x1, y1, x2, y2 = int(box.x1), int(box.y1), int(box.x2), int(box.y2)
+            text = f"{box.chinese_name} {box.confidence:.2f}"
+            draw.rectangle([(x1, y1), (x2, y2)], outline=(0, 255, 0), width=2)
+            text_y = max(y1 - 18, 0)
+            bbox = draw.textbbox((x1, text_y), text, font=font)
+            draw.rectangle(bbox, fill=(0, 255, 0))
+            draw.text((x1, text_y), text, fill=(0, 0, 0), font=font)
+        annotated_image_bgr = cv2.cvtColor(np.array(pil_img), cv2.COLOR_RGB2BGR)
         _, image_bytes = cv2.imencode('.jpg', annotated_image_bgr)
         image_bytes = image_bytes.tobytes()
 
