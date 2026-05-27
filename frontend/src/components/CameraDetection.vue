@@ -512,7 +512,7 @@ const resetState = () => {
 }
 
 // 刷新页面
-const refreshPage = () =&gt; {
+const refreshPage = () => {
   window.location.reload()
 }
 

@@ -13,33 +13,6 @@
       </p>
     </div>
 
-    <!-- 顶部工具栏 -->
-    <div class="top-toolbar">
-      <!-- 作物选择器 -->
-      <div class="crop-selector">
-        <span class="selector-label">{{ t('detection.selectCropType') }}</span>
-        <div class="crop-options">
-          <div
-            v-for="crop in cropTypes"
-            :key="crop.key"
-            class="crop-option"
-            :class="{ active: selectedCrop === crop.key }"
-            :style="selectedCrop === crop.key ? { backgroundColor: crop.color, borderColor: crop.color } : { borderColor: crop.color }"
-            @click="selectedCrop = crop.key"
-          >
-            <el-icon :size="16"><component :is="crop.icon" /></el-icon>
-            <span>{{ t(`crops.${crop.key}`) }}</span>
-          </div>
-        </div>
-      </div>
-
-      <!-- 模型选择器 -->
-      <div class="model-selector">
-        <el-select v-model="selectedModel" style="width: 180px">
-          <el-option :label="t('detection.agriPestModel')" value="agri-pest-yolo11n" />
-        </el-select>
-      </div>
-    </div>
 
     <!-- 功能选项卡 -->
     <div class="function-tabs">
@@ -51,6 +24,7 @@
         @click="handleTabClick(tab.key, index)"
       >
         <input
+          v-if="tab.key !== 'camera'"
           type="file"
           :accept="tab.accept"
           :multiple="tab.multiple"
@@ -103,8 +77,13 @@
           </el-button>
         </div>
 
+        <!-- 摄像头实时检测 -->
+        <div v-if="activeTab === 'camera'" class="camera-area">
+          <CameraDetection />
+        </div>
+
         <!-- 图片对比区域 -->
-        <div class="image-compare" :class="compareMode">
+        <div v-else class="image-compare" :class="compareMode">
           <div class="image-card">
             <input
               type="file"
@@ -275,12 +254,12 @@
 import { ref, computed, onMounted } from "vue";
 import { useI18n } from "vue-i18n";
 import { ElMessage, ElLoading } from "element-plus";
+import CameraDetection from "../components/CameraDetection.vue";
 import {
   Picture,
   Plus,
   FolderOpened,
   Monitor,
-  Check,
   Upload,
   View,
   Minus,
@@ -290,14 +269,11 @@ import {
   ChatDotRound,
   Refresh,
   Download,
-  Star,
-  Apple,
 } from "@element-plus/icons-vue";
 
 const { t } = useI18n();
 
 const selectedModel = ref("agri-pest-yolo11n");
-const selectedCrop = ref("rice");
 const activeTab = ref("single");
 const compareMode = ref("side");
 const originalImage = ref(null);
@@ -318,13 +294,6 @@ const previewImages = computed(() => {
   }
   return images;
 });
-
-const cropTypes = [
-  { key: "rice", icon: Check, color: "#fbbf24" },
-  { key: "wheat", icon: Star, color: "#d97706" },
-  { key: "corn", icon: Plus, color: "#eab308" },
-  { key: "vegetable", icon: Apple, color: "#22c55e" },
-];
 
 const functionTabs = [
   {
@@ -369,52 +338,17 @@ const getSuggestion = (box) => {
   return box.treatment_advice || t('detection.defaultSuggestion');
 };
 
-onMounted(() => {
-  const savedCrop = localStorage.getItem('selectedCrop');
-  if (savedCrop) {
-    selectedCrop.value = savedCrop;
-    localStorage.removeItem('selectedCrop');
-  }
-});
+onMounted(() => {});
 
 const handleTabClick = (key, index) => {
   activeTab.value = key;
-  
+
   if (key === "camera") {
-    handleCamera();
     return;
   }
-  
+
   if (fileInputs.value[index]) {
     fileInputs.value[index].click();
-  }
-};
-
-const handleCamera = async () => {
-  try {
-    const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-    const video = document.createElement('video');
-    video.srcObject = stream;
-    video.autoplay = true;
-    
-    ElMessage.success(t('detection.cameraOpened'));
-    
-    setTimeout(() => {
-      const canvas = document.createElement('canvas');
-      canvas.width = video.videoWidth;
-      canvas.height = video.videoHeight;
-      const ctx = canvas.getContext('2d');
-      ctx.drawImage(video, 0, 0);
-      stream.getTracks().forEach(track => track.stop());
-      
-      canvas.toBlob(async (blob) => {
-        const file = new File([blob], 'camera.jpg', { type: 'image/jpeg' });
-        await performSingleDetection(file);
-      }, 'image/jpeg');
-    }, 2000);
-  } catch (error) {
-    ElMessage.error(t('detection.cannotAccessCamera'));
-    console.error('Camera error:', error);
   }
 };
 
@@ -544,61 +478,6 @@ const handleRedetect = () => {
   color: var(--text-secondary);
 }
 
-.top-toolbar {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 24px;
-  padding: 16px 20px;
-  background-color: #ffffff;
-  border-radius: 12px;
-  box-shadow: var(--card-shadow);
-}
-
-.crop-selector {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.selector-label {
-  font-size: 14px;
-  color: var(--text-secondary);
-  font-weight: 500;
-}
-
-.crop-options {
-  display: flex;
-  gap: 10px;
-}
-
-.crop-option {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 8px 16px;
-  border-radius: 20px;
-  border: 2px solid;
-  font-size: 14px;
-  cursor: pointer;
-  transition: all 0.2s;
-  background-color: #ffffff;
-  color: var(--text-secondary);
-}
-
-.crop-option.active {
-  color: #ffffff;
-  font-weight: 500;
-}
-
-.crop-option:hover:not(.active) {
-  transform: translateY(-1px);
-  background-color: rgba(34, 197, 94, 0.05);
-}
-
-.model-selector {
-}
-
 /* 功能选项卡 */
 .function-tabs {
   display: flex;
@@ -674,6 +553,11 @@ const handleRedetect = () => {
   background-color: #ffffff;
   border-radius: 12px;
   padding: 20px;
+}
+
+.camera-area {
+  width: 100%;
+  min-height: 400px;
 }
 
 .panel-header {
