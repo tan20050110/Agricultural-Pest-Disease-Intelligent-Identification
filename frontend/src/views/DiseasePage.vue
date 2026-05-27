@@ -28,6 +28,32 @@
       </div>
     </div>
 
+    <!-- 功能选项卡 -->
+    <div class="function-tabs">
+      <div
+        v-for="(tab, index) in functionTabs"
+        :key="tab.key"
+        class="function-tab"
+        :class="{ active: activeTab === tab.key }"
+        @click="handleTabClick(tab.key, index)"
+      >
+        <input
+          v-if="tab.key !== 'camera' && tab.key !== 'video'"
+          type="file"
+          :accept="tab.accept"
+          :multiple="tab.multiple"
+          class="file-input"
+          :ref="el => fileInputs[index] = el"
+          @change.stop="handleFileChange($event, tab.key)"
+        />
+        <el-icon :size="18" class="tab-icon"><component :is="tab.icon" /></el-icon>
+        <div class="tab-content">
+          <span class="tab-text">{{ t(`detection.${tab.key}`) }}</span>
+          <span class="tab-desc">{{ t(`detection.${tab.key}Desc`) }}</span>
+        </div>
+      </div>
+    </div>
+
     <!-- 主内容区域 -->
     <div class="main-content">
       <!-- 左侧：图片上传与预览 -->
@@ -35,25 +61,30 @@
         <div class="panel-header">
           <span class="panel-title">{{ t('disease.detectionPreview') }}</span>
           <el-tag
-            :type="hasImage && diseaseResult ? 'success' : 'info'"
+            :type="hasImage && diseaseResult && activeTab !== 'camera' ? 'success' : 'info'"
             effect="light"
             class="result-tag"
           >
-            <el-icon class="el-icon--left" v-if="hasImage && diseaseResult"><Check /></el-icon>
+            <el-icon class="el-icon--left" v-if="hasImage && diseaseResult && activeTab !== 'camera'"><Check /></el-icon>
             <el-icon class="el-icon--left" v-else><Upload /></el-icon>
-            {{ hasImage && diseaseResult ? t('disease.detectionComplete') : t('disease.waitingForUpload') }}
+            {{ activeTab === 'camera' ? t('detection.camera') : (hasImage && diseaseResult ? t('disease.detectionComplete') : t('disease.waitingForUpload')) }}
           </el-tag>
         </div>
 
+        <!-- 摄像头实时检测 -->
+        <div v-if="activeTab === 'camera'" class="camera-area">
+          <CameraDetection />
+        </div>
+
         <!-- 图片区域 -->
-        <div class="image-section">
+        <div v-else class="image-section">
           <div class="image-card">
             <input
               type="file"
               accept="image/*"
               class="hidden-file-input"
-              ref="fileInput"
-              @change="handleFileChange"
+              ref="placeholderInput"
+              @change="handlePlaceholderUpload"
             />
             <template v-if="hasImage && originalImage">
               <el-image
@@ -85,7 +116,7 @@
         </div>
 
         <!-- 操作按钮 -->
-        <div class="action-buttons">
+        <div v-if="activeTab !== 'camera'" class="action-buttons">
           <el-button
             size="default"
             class="btn-reupload"
@@ -227,6 +258,9 @@ import { useI18n } from "vue-i18n";
 import { ElMessage, ElLoading } from "element-plus";
 import {
   Picture,
+  Plus,
+  FolderOpened,
+  Monitor,
   Upload,
   Check,
   Refresh,
@@ -237,14 +271,24 @@ import {
   List,
   ChatDotRound,
 } from "@element-plus/icons-vue";
+import CameraDetection from "../components/CameraDetection.vue";
 
 const { t } = useI18n();
 
+const activeTab = ref("single");
 const originalImage = ref(null);
 const diseaseResult = ref(null);
 const isDetecting = ref(false);
 const hasImage = ref(false);
-const fileInput = ref(null);
+const fileInputs = ref([]);
+const placeholderInput = ref(null);
+
+const functionTabs = [
+  { key: "single",    icon: Picture,       accept: "image/*", multiple: false },
+  { key: "batch",     icon: Plus,          accept: "image/*", multiple: true  },
+  { key: "camera",    icon: Monitor,       accept: "image/*", multiple: false },
+  { key: "video",     icon: FolderOpened,  accept: "video/*", multiple: false },
+];
 
 // 病害防治建议映射
 const diseaseSuggestions = {
@@ -310,16 +354,35 @@ const getBarClass = (index) => {
   return "bar-other";
 };
 
+const handleTabClick = (key) => {
+  activeTab.value = key;
+  if (key === "video") ElMessage.info(t('detection.videoFeatureInDevelopment'));
+};
+
 const triggerUpload = () => {
-  if (fileInput.value) {
-    fileInput.value.click();
+  if (fileInputs.value[0]) {
+    fileInputs.value[0].click();
   }
 };
 
-const handleFileChange = async (event) => {
+const handlePlaceholderUpload = async (event) => {
   const files = event.target.files;
   if (files && files.length > 0) {
     await performDiseaseDetection(files[0]);
+  }
+  event.target.value = "";
+};
+
+const handleFileChange = async (event, tabKey) => {
+  const files = event.target.files;
+  if (files && files.length > 0) {
+    if (tabKey === "single") {
+      await performDiseaseDetection(files[0]);
+    } else if (tabKey === "batch") {
+      await performBatchDetection(Array.from(files));
+    } else if (tabKey === "video") {
+      ElMessage.info(t('detection.videoFeatureInDevelopment'));
+    }
   }
   event.target.value = "";
 };
@@ -360,6 +423,15 @@ const performDiseaseDetection = async (file) => {
     isDetecting.value = false;
     loading.close();
   }
+};
+
+const performBatchDetection = async (files) => {
+  ElMessage.info(t('detection.startBatchDetection', { count: files.length }));
+  for (let i = 0; i < files.length; i++) {
+    await performDiseaseDetection(files[i]);
+    await new Promise(resolve => setTimeout(resolve, 500));
+  }
+  ElMessage.success(t('detection.batchDetectionComplete', { count: files.length }));
 };
 </script>
 
@@ -437,6 +509,73 @@ const performDiseaseDetection = async (file) => {
 
 .class-count-tip .el-icon {
   color: var(--primary-color);
+}
+
+/* 功能选项卡 */
+.function-tabs {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.function-tab {
+  position: relative;
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 20px;
+  background-color: #ffffff;
+  border-radius: 12px;
+  box-shadow: var(--card-shadow);
+  cursor: pointer;
+  transition: all 0.2s;
+  border: 2px solid transparent;
+}
+
+.function-tab:hover {
+  border-color: var(--primary-color);
+  transform: translateY(-2px);
+}
+
+.function-tab.active {
+  border-color: var(--primary-color);
+  background-color: rgba(34, 197, 94, 0.03);
+}
+
+.file-input {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  cursor: pointer;
+  z-index: 10;
+}
+
+.tab-icon {
+  color: var(--primary-color);
+}
+
+.tab-content {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.tab-text {
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.tab-desc {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.camera-area {
+  width: 100%;
+  min-height: 400px;
 }
 
 /* 主内容区域 */

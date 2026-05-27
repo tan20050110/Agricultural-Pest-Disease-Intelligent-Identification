@@ -24,13 +24,13 @@
         @click="handleTabClick(tab.key, index)"
       >
         <input
-          v-if="tab.key !== 'camera'"
+          v-if="tab.key !== 'camera' && tab.key !== 'video'"
           type="file"
           :accept="tab.accept"
           :multiple="tab.multiple"
           class="file-input"
           :ref="el => fileInputs[index] = el"
-          @change="handleFileChange($event, tab.key)"
+          @change.stop="handleFileChange($event, tab.key)"
         />
         <el-icon :size="18" class="tab-icon"><component :is="tab.icon" /></el-icon>
         <div class="tab-content">
@@ -340,16 +340,8 @@ const getSuggestion = (box) => {
 
 onMounted(() => {});
 
-const handleTabClick = (key, index) => {
+const handleTabClick = (key) => {
   activeTab.value = key;
-
-  if (key === "camera") {
-    return;
-  }
-
-  if (fileInputs.value[index]) {
-    fileInputs.value[index].click();
-  }
 };
 
 const handleFileChange = async (event, tabKey) => {
