@@ -70,3 +70,56 @@ export const getDetectionStatus = () => {
     method: 'get'
   })
 }
+
+/**
+ * 病害摄像头：发送单帧进行病害分类
+ */
+export const detectDiseaseFrame = (data) => {
+  return request({
+    url: '/camera/disease/detect',
+    method: 'post',
+    data,
+    timeout: 10000
+  })
+}
+
+/**
+ * 病害摄像头：启动分类服务
+ */
+export const startDiseaseDetection = (data) => {
+  return request({
+    url: '/camera/disease/start',
+    method: 'post',
+    data
+  })
+}
+
+/**
+ * 病害摄像头：停止分类服务
+ */
+export const stopDiseaseDetection = () => {
+  return request({
+    url: '/camera/disease/stop',
+    method: 'post'
+  })
+}
+
+/**
+ * 病害摄像头：暂停分类
+ */
+export const pauseDiseaseDetection = () => {
+  return request({
+    url: '/camera/disease/pause',
+    method: 'post'
+  })
+}
+
+/**
+ * 病害摄像头：恢复分类
+ */
+export const resumeDiseaseDetection = () => {
+  return request({
+    url: '/camera/disease/resume',
+    method: 'post'
+  })
+}

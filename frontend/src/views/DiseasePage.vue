@@ -73,7 +73,7 @@
 
         <!-- 摄像头实时检测 -->
         <div v-if="activeTab === 'camera'" class="camera-area">
-          <CameraDetection />
+          <CameraDetection mode="disease" @detect="handleCameraDetect" />
         </div>
 
         <!-- 图片区域 -->
@@ -357,6 +357,17 @@ const getBarClass = (index) => {
 const handleTabClick = (key) => {
   activeTab.value = key;
   if (key === "video") ElMessage.info(t('detection.videoFeatureInDevelopment'));
+};
+
+const handleCameraDetect = (data) => {
+  hasImage.value = true;
+  const predictions = data.predictions || [];
+  diseaseResult.value = {
+    prediction: predictions[0] || {},
+    top5: predictions,
+    detection_time: data.detection_time || 0,
+    model_name: "resnet50_disease",
+  };
 };
 
 const triggerUpload = () => {

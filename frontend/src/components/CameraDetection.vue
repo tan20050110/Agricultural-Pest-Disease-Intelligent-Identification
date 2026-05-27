@@ -75,10 +75,10 @@
           v-for="(target, idx) in detectedTargets"
           :key="idx"
           class="target-item"
-          :style="{ borderLeftColor: getBoxColor(target.class_name) }"
+          :style="{ borderLeftColor: getBoxColor(target.class_name || target.disease || '') }"
         >
           <div class="target-name">
-            <span class="color-dot" :style="{ background: getBoxColor(target.class_name) }"></span>
+            <span class="color-dot" :style="{ background: getBoxColor(target.class_name || target.disease || '') }"></span>
             {{ target.chinese_name }}
           </div>
           <div class="target-conf">{{ (target.confidence * 100).toFixed(1) }}%</div>
@@ -142,7 +142,16 @@ import { ref, computed, onBeforeUnmount, nextTick } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
 import { VideoCamera, VideoPlay, VideoPause } from '@element-plus/icons-vue'
-import { detectFrame, startDetection, stopDetection, pauseDetection, resumeDetection } from '../api/detection'
+import {
+  detectFrame, startDetection, stopDetection, pauseDetection, resumeDetection,
+  detectDiseaseFrame, startDiseaseDetection, stopDiseaseDetection, pauseDiseaseDetection, resumeDiseaseDetection,
+} from '../api/detection'
+
+const props = defineProps({
+  mode: { type: String, default: 'detection' }
+})
+
+const emit = defineEmits(['detect'])
 
 const { t } = useI18n()
 
@@ -171,6 +180,7 @@ let detectionFrameId = null
 let drawFrameId = null
 let lastDetectionTime = 0
 let currentBoxes = []
+let currentPredictions = []
 let consecutiveErrorCount = 0
 const MAX_CONSECUTIVE_ERRORS = 10
 
@@ -235,8 +245,9 @@ const startCamera = async () => {
 
   isStarting.value = true
   try {
-    // 启动后端检测服务
-    const res = await startDetection({
+    // 启动后端检测/分类服务
+    const startFn = props.mode === 'disease' ? startDiseaseDetection : startDetection
+    const res = await startFn({
       confidence_threshold: 0.5,
       iou_threshold: 0.7,
       inference_interval: 2
@@ -330,18 +341,30 @@ const startDetectionStream = () => {
 
         const imageData = capture.toDataURL('image/jpeg', 0.7)
 
-        const response = await detectFrame({ image: imageData })
+        const detectFn = props.mode === 'disease' ? detectDiseaseFrame : detectFrame
+        const response = await detectFn({ image: imageData })
 
         if (response.success) {
-          currentBoxes = response.data.boxes || []
+          if (props.mode === 'disease') {
+            currentPredictions = response.data.predictions || []
+            totalObjects.value = currentPredictions.length
+          } else {
+            currentBoxes = response.data.boxes || []
+            totalObjects.value = response.data.total_objects || 0
+          }
           fps.value = response.data.fps || 0
           detectionTime.value = response.data.detection_time || 0
-          totalObjects.value = response.data.total_objects || 0
           consecutiveErrorCount = 0
           lastDetectionTime = currentTime
 
-          // 更新检测目标列表（去重 + 最新）
-          updateDetectedTargets(currentBoxes)
+          updateDetectedTargets(props.mode === 'disease' ? currentPredictions : currentBoxes)
+
+          // 通知父页面更新右侧面板
+          if (props.mode === 'disease') {
+            emit('detect', { predictions: currentPredictions, detection_time: detectionTime.value })
+          } else {
+            emit('detect', { boxes: currentBoxes, total_objects: totalObjects.value, detection_time: detectionTime.value })
+          }
         } else {
           consecutiveErrorCount++
           if (consecutiveErrorCount > MAX_CONSECUTIVE_ERRORS) {
@@ -382,10 +405,37 @@ const startDrawingLoop = () => {
     ctx.clearRect(0, 0, canvas.width, canvas.height)
 
     if (video.videoWidth && video.videoHeight) {
-      const scaleX = canvas.width / video.videoWidth
-      const scaleY = canvas.height / video.videoHeight
 
-      currentBoxes.forEach((box) => {
+      if (props.mode === 'disease') {
+        // 病害模式：显示分类结果覆盖
+        if (currentPredictions.length > 0) {
+          const p = currentPredictions[0]
+          const x = 16, y = 16
+          const label = `${p.chinese_name} ${(p.confidence * 100).toFixed(0)}%`
+
+          ctx.font = 'bold 14px Arial'
+          const tm = ctx.measureText(label)
+          const bw = tm.width + 20, bh = 30
+
+          ctx.fillStyle = 'rgba(0,0,0,0.7)'
+          ctx.fillRect(x, y, bw, bh)
+
+          ctx.fillStyle = '#4ade80'
+          ctx.fillText(label, x + 10, y + 22)
+
+          // 置信度条
+          const barY = y + bh + 4
+          ctx.fillStyle = 'rgba(0,0,0,0.5)'
+          ctx.fillRect(x, barY, bw, 6)
+          ctx.fillStyle = '#4ade80'
+          ctx.fillRect(x, barY, bw * p.confidence, 6)
+        }
+      } else {
+        // 虫害模式：画框
+        const scaleX = canvas.width / video.videoWidth
+        const scaleY = canvas.height / video.videoHeight
+
+        currentBoxes.forEach((box) => {
         const x1 = box.x1 * scaleX
         const y1 = box.y1 * scaleY
         const x2 = box.x2 * scaleX
@@ -432,6 +482,7 @@ const startDrawingLoop = () => {
 
   drawBoxes()
 }
+}
 
 // 更新已检测目标列表
 const updateDetectedTargets = (boxes) => {
@@ -455,12 +506,14 @@ const updateDetectedTargets = (boxes) => {
 
 // 暂停/恢复
 const pauseResume = async () => {
+  const pauseFn = props.mode === 'disease' ? pauseDiseaseDetection : pauseDetection
+  const resumeFn = props.mode === 'disease' ? resumeDiseaseDetection : resumeDetection
   if (isPaused.value) {
-    await resumeDetection()
+    await resumeFn()
     isPaused.value = false
     ElMessage.success(t('camera.resumed'))
   } else {
-    await pauseDetection()
+    await pauseFn()
     isPaused.value = true
     ElMessage.info(t('camera.paused'))
   }
@@ -471,7 +524,6 @@ const stopCamera = async () => {
   isRunning.value = false
   isPaused.value = false
 
-  // 停止所有循环
   if (detectionFrameId) {
     cancelAnimationFrame(detectionFrameId)
     detectionFrameId = null
@@ -481,8 +533,7 @@ const stopCamera = async () => {
     drawFrameId = null
   }
 
-  // 停止后端检测服务
-  await stopDetection()
+  await (props.mode === 'disease' ? stopDiseaseDetection() : stopDetection())
 
   cleanupResources()
   resetState()

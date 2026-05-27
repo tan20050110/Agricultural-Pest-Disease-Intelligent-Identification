@@ -79,7 +79,7 @@
 
         <!-- 摄像头实时检测 -->
         <div v-if="activeTab === 'camera'" class="camera-area">
-          <CameraDetection />
+          <CameraDetection @detect="handleCameraDetect" />
         </div>
 
         <!-- 图片对比区域 -->
@@ -342,6 +342,16 @@ onMounted(() => {});
 
 const handleTabClick = (key) => {
   activeTab.value = key;
+};
+
+const handleCameraDetect = (data) => {
+  hasImage.value = true;
+  detectionResult.value = {
+    boxes: data.boxes || [],
+    total_objects: data.total_objects || 0,
+    detection_time: data.detection_time || 0,
+    model_name: selectedModel.value,
+  };
 };
 
 const handleFileChange = async (event, tabKey) => {
