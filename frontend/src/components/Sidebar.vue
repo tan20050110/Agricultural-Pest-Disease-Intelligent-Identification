@@ -23,21 +23,6 @@
       </div>
     </div>
 
-    <div class="crop-quick-access">
-      <div class="crop-section-title">{{ t('app.cropCategories') }}</div>
-      <div class="crop-tags">
-        <div
-          v-for="crop in cropTypes"
-          :key="crop.nameKey"
-          class="crop-tag"
-          :style="{ borderColor: crop.color, color: crop.color }"
-          @click="selectCrop(crop)"
-        >
-          <el-icon :size="14"><component :is="crop.icon" /></el-icon>
-          <span>{{ t(crop.labelKey) }}</span>
-        </div>
-      </div>
-    </div>
   </div>
 </template>
 
@@ -53,9 +38,6 @@ import {
   Folder,
   User,
   Setting,
-  Check,
-  Star,
-  Plus,
   Apple,
   VideoCamera,
 } from "@element-plus/icons-vue";
@@ -108,13 +90,6 @@ const menuList = [
   },
 ];
 
-const cropTypes = [
-  { nameKey: "rice", labelKey: "crops.rice", icon: Check, color: "#fbbf24" },
-  { nameKey: "wheat", labelKey: "crops.wheat", icon: Star, color: "#d97706" },
-  { nameKey: "corn", labelKey: "crops.corn", icon: Plus, color: "#eab308" },
-  { nameKey: "vegetable", labelKey: "crops.vegetable", icon: Apple, color: "#22c55e" },
-];
-
 // 使用computed来实时翻译菜单项
 const menuListWithLabels = computed(() => {
   return menuList.map(item => ({
@@ -129,10 +104,6 @@ const handleMenuClick = (item) => {
   router.push(item.path);
 };
 
-const selectCrop = (crop) => {
-  localStorage.setItem("selectedCrop", crop.nameKey);
-  router.push("/detection");
-};
 </script>
 
 <style scoped>
@@ -227,40 +198,4 @@ const selectCrop = (crop) => {
   line-height: 1.4;
 }
 
-.crop-quick-access {
-  padding: 16px 12px;
-  border-top: 1px solid var(--border-color);
-  background-color: rgba(34, 197, 94, 0.03);
-}
-
-.crop-section-title {
-  font-size: 12px;
-  color: var(--text-secondary);
-  margin-bottom: 12px;
-  padding-left: 4px;
-}
-
-.crop-tags {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.crop-tag {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  padding: 6px 10px;
-  border-radius: 16px;
-  border: 1px solid;
-  font-size: 12px;
-  cursor: pointer;
-  transition: all 0.2s;
-  background-color: #ffffff;
-}
-
-.crop-tag:hover {
-  background-color: var(--primary-light);
-  transform: translateY(-1px);
-}
 </style>
