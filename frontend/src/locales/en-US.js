@@ -182,7 +182,17 @@ export default {
     statusSuccess: "Success",
     confirm: "Confirm",
     cancel: "Cancel",
-    hint: "Hint"
+    hint: "Hint",
+    detailTitle: "Detection Detail",
+    loadingDetail: "Loading...",
+    modelName: "Model",
+    detectionDuration: "Duration",
+    detectedTargets: "Detected Targets",
+    targetName: "Target Name",
+    className: "Class",
+    confidence: "Confidence",
+    treatmentAdvice: "Treatment Advice",
+    noImage: "No Image"
   },
   
   // 农技问答
@@ -519,6 +529,35 @@ export default {
     firefoxTip: "Click the permission icon on the left of the address bar → Select 'Allow' from the camera permission dropdown",
     safariTip: "Click Safari menu → Preferences → Websites → Camera → Find this website and select 'Allow'",
     refreshAndRetry: "Refresh and Retry"
+  },
+
+  // 视频检测
+  video: {
+    uploadHint: "Click to upload video",
+    formats: "Supports mp4, avi, mov formats",
+    uploadFirst: "Please upload a video to start",
+    waiting: "Waiting for detection",
+    detecting: "Real-time detecting...",
+    detectionResult: "Detection Result",
+    currentFrameTargets: "Current Frame Targets",
+    noTargetDetected: "No targets detected in this frame",
+    prediction: "Prediction",
+    settings: "Detection Settings",
+    confidenceThreshold: "Confidence Threshold",
+    detectionFPS: "Detection FPS",
+    uploadVideo: "Upload Video",
+    startDetection: "Start Detection",
+    stopDetection: "Stop Detection",
+    currentFrame: "Current Frame",
+    detectedTargets: "Detected Targets",
+    detectionTime: "Detection Time",
+    duration: "Duration",
+    currentTime: "Current Time",
+    loadFailed: "Video loading failed",
+    videoNotLoaded: "Video not loaded",
+    loadingVideo: "Loading video, please wait...",
+    autoplayBlocked: "Autoplay blocked, please click play manually",
+    playComplete: "Video playback completed, detection ended"
   },
 
   // 通用

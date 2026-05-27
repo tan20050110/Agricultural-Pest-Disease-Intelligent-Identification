@@ -76,8 +76,13 @@
           <CameraDetection mode="disease" @detect="handleCameraDetect" />
         </div>
 
+        <!-- 视频检测 -->
+        <div v-if="activeTab === 'video'" class="video-area">
+          <VideoDetection mode="disease" />
+        </div>
+
         <!-- 图片区域 -->
-        <div v-else class="image-section">
+        <div v-else-if="activeTab !== 'camera' && activeTab !== 'video'" class="image-section">
           <div class="image-card">
             <input
               type="file"
@@ -272,6 +277,7 @@ import {
   ChatDotRound,
 } from "@element-plus/icons-vue";
 import CameraDetection from "../components/CameraDetection.vue";
+import VideoDetection from "../components/VideoDetection.vue";
 
 const { t } = useI18n();
 

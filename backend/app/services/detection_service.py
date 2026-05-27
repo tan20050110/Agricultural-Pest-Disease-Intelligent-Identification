@@ -1307,6 +1307,10 @@ class DetectionService:
             record = db.query(DetectionRecord).filter(DetectionRecord.id == detection_id).first()
 
             if record:
+                # 先取出 MinIO 文件 key，以便删除记录后清理文件
+                original_key = record.original_image_key
+                result_key = record.result_image_key
+
                 # 删除关联的检测结果
                 db.query(DBDetectionResult).filter(DBDetectionResult.record_id == detection_id).delete()
 
@@ -1315,6 +1319,16 @@ class DetectionService:
 
                 # 提交事务
                 db.commit()
+
+                # 删除 MinIO 上的图片文件
+                for key in [original_key, result_key]:
+                    if key:
+                        try:
+                            object_name = os.path.basename(key)
+                            bucket = "agri-pest-results" if "result" in key.lower() else "agri-pest-original"
+                            minio_service.delete_object(bucket, object_name)
+                        except Exception as e:
+                            logger.warning(f"删除 MinIO 文件失败 [{key}]: {str(e)}")
 
                 logger.info(f"检测记录已删除: {detection_id}")
                 return True
@@ -1329,6 +1343,71 @@ class DetectionService:
             except:
                 pass
             return False
+
+    def detect_frame_realtime(self, image, confidence_threshold=None, iou_threshold=None):
+        """
+        实时视频帧检测（不保存到数据库，不保存文件）
+
+        参数：
+            image: numpy 数组格式的图片（BGR 格式，来自 cv2）
+            confidence_threshold: 置信度阈值（可选，默认使用配置值）
+            iou_threshold: IOU 阈值（可选，默认使用配置值）
+
+        返回：
+            dict: 包含 boxes, total_objects, detection_time, image_width, image_height
+        """
+        _ensure_ml_imports()
+
+        if self.model is None:
+            self._load_model_smart()
+
+        conf = confidence_threshold if confidence_threshold is not None else settings.confidence_threshold
+        iou_val = iou_threshold if iou_threshold is not None else settings.iou_threshold
+
+        import torch
+        device = "cuda" if torch.cuda.is_available() else "cpu"
+
+        start_time = time.time()
+
+        results = self.model.predict(
+            source=image,
+            conf=conf,
+            iou=iou_val,
+            imgsz=640,
+            device=device,
+            half=(device == "cuda"),
+            save=False
+        )
+
+        boxes = []
+        for result in results:
+            for box in result.boxes:
+                x1, y1, x2, y2 = box.xyxy[0].tolist()
+                confidence = float(box.conf[0])
+                class_id = int(box.cls[0])
+                class_name = self.class_names.get(class_id, f"class_{class_id}")
+                chinese_name = self.get_class_chinese_name(class_name)
+
+                boxes.append(DetectionBox(
+                    x1=round(x1, 2),
+                    y1=round(y1, 2),
+                    x2=round(x2, 2),
+                    y2=round(y2, 2),
+                    confidence=round(confidence, 4),
+                    class_id=class_id,
+                    class_name=class_name,
+                    chinese_name=chinese_name
+                ))
+
+        detection_time = time.time() - start_time
+
+        return {
+            "boxes": boxes,
+            "total_objects": len(boxes),
+            "detection_time": round(detection_time, 4),
+            "image_width": image.shape[1] if len(image.shape) >= 2 else 0,
+            "image_height": image.shape[0] if len(image.shape) >= 2 else 0
+        }
 
 
 # =============================================================================

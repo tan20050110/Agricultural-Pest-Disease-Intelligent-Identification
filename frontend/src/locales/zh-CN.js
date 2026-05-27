@@ -170,7 +170,17 @@ export default {
     statusSuccess: "成功",
     confirm: "确定",
     cancel: "取消",
-    hint: "提示"
+    hint: "提示",
+    detailTitle: "检测详情",
+    loadingDetail: "加载中...",
+    modelName: "模型名称",
+    detectionDuration: "检测耗时",
+    detectedTargets: "检测目标",
+    targetName: "目标名称",
+    className: "类别",
+    confidence: "置信度",
+    treatmentAdvice: "防治建议",
+    noImage: "暂无图片"
   },
   
   // 农技问答
@@ -507,6 +517,35 @@ export default {
     firefoxTip: "点击地址栏左侧的权限图标 → 在摄像头权限下拉菜单中选择“允许”",
     safariTip: "点击 Safari 菜单 → 偏好设置 → 网站 → 摄像头 → 找到本网站并选择“允许”",
     refreshAndRetry: "刷新并重试"
+  },
+
+  // 视频检测
+  video: {
+    uploadHint: "点击上传视频",
+    formats: "支持 mp4、avi、mov 等格式",
+    uploadFirst: "请上传视频开始检测",
+    waiting: "等待检测",
+    detecting: "实时检测中...",
+    detectionResult: "检测结果",
+    currentFrameTargets: "当前帧目标",
+    noTargetDetected: "该帧未检测到目标",
+    prediction: "预测",
+    settings: "检测设置",
+    confidenceThreshold: "置信度阈值",
+    detectionFPS: "检测帧率",
+    uploadVideo: "上传视频",
+    startDetection: "开始检测",
+    stopDetection: "停止检测",
+    currentFrame: "当前帧",
+    detectedTargets: "检测目标",
+    detectionTime: "检测耗时",
+    duration: "视频时长",
+    currentTime: "当前时间",
+    loadFailed: "视频加载失败",
+    videoNotLoaded: "视频未加载",
+    loadingVideo: "正在加载视频，请稍候...",
+    autoplayBlocked: "自动播放被阻止，请手动点击播放",
+    playComplete: "视频播放完成，检测结束"
   },
 
   // 通用

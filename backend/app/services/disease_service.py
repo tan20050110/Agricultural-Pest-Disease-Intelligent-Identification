@@ -552,6 +552,52 @@ class DiseaseService:
             except:
                 pass
 
+    def classify_frame_realtime(self, image):
+        """
+        实时视频帧病害分类（不保存到数据库，不保存文件）
+
+        参数：
+            image: numpy 数组格式的图片（BGR 格式，来自 cv2）
+
+        返回：
+            dict: 包含 top5 预测结果、检测耗时等
+        """
+        _ensure_cv2()
+
+        if self.model is None:
+            self._load_model()
+
+        start_time = time.time()
+
+        # BGR -> RGB -> tensor
+        img_rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+        img_tensor = self.transform(img_rgb).unsqueeze(0).to(self.device)
+
+        with torch.no_grad():
+            output = self.model(img_tensor)
+            probs = torch.softmax(output, dim=1)
+
+        predictions = self._get_disease_prediction(probs, top_k=5)
+        detection_time = time.time() - start_time
+
+        return {
+            "top5": [
+                {
+                    "class_id": p.class_id,
+                    "class_name": p.class_name,
+                    "crop": p.crop,
+                    "disease": p.disease,
+                    "chinese_name": p.chinese_name,
+                    "confidence": p.confidence,
+                    "treatment_advice": p.treatment_advice
+                }
+                for p in predictions
+            ],
+            "detection_time": round(detection_time, 4),
+            "image_width": image.shape[1] if len(image.shape) >= 2 else 0,
+            "image_height": image.shape[0] if len(image.shape) >= 2 else 0
+        }
+
 
 # =============================================================================
 # 全局病害识别服务实例

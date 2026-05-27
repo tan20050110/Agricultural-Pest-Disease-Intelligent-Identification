@@ -82,8 +82,13 @@
           <CameraDetection @detect="handleCameraDetect" />
         </div>
 
+        <!-- 视频检测 -->
+        <div v-if="activeTab === 'video'" class="video-area">
+          <VideoDetection mode="pest" />
+        </div>
+
         <!-- 图片对比区域 -->
-        <div v-else class="image-compare" :class="compareMode">
+        <div v-else-if="activeTab !== 'camera' && activeTab !== 'video'" class="image-compare" :class="compareMode">
           <div class="image-card">
             <input
               type="file"
@@ -255,6 +260,7 @@ import { ref, computed, onMounted } from "vue";
 import { useI18n } from "vue-i18n";
 import { ElMessage, ElLoading } from "element-plus";
 import CameraDetection from "../components/CameraDetection.vue";
+import VideoDetection from "../components/VideoDetection.vue";
 import {
   Picture,
   Plus,

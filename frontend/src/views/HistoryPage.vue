@@ -118,6 +118,50 @@
       </div>
     </div>
 
+    <!-- 检测详情弹窗 -->
+    <el-dialog
+      v-model="detailVisible"
+      :title="t('history.detailTitle')"
+      width="80%"
+      top="5vh"
+      class="detail-dialog"
+      destroy-on-close
+    >
+      <div v-if="detailLoading" class="detail-loading">
+        <el-icon class="is-loading" :size="32"><Loading /></el-icon>
+        <p>{{ t('history.loadingDetail') }}</p>
+      </div>
+      <div v-else-if="detailRecord" class="detail-content">
+        <div class="detail-result-image">
+          <img :src="detailRecord.result_image_url" :alt="detailRecord.filename" />
+        </div>
+        <div class="detail-side">
+          <div class="detail-info">
+            <div class="detail-filename">{{ detailRecord.filename }}</div>
+            <div class="detail-meta">
+              <span>{{ t('history.detectionTime') }}: {{ detailRecord.time }}</span>
+              <span>{{ t('history.modelName') }}: {{ detailRecord.model_name }}</span>
+              <span>{{ t('history.detectionDuration') }}: {{ detailRecord.detection_time?.toFixed(2) }}s</span>
+              <span>{{ t('history.targets') }}: {{ detailRecord.total_objects }}</span>
+            </div>
+          </div>
+          <div class="detail-boxes">
+            <h4>{{ t('history.detectedTargets') }}</h4>
+            <el-table :data="detailRecord.boxes" stripe size="small" max-height="400">
+              <el-table-column prop="chinese_name" :label="t('history.targetName')" width="120" />
+              <el-table-column prop="class_name" :label="t('history.className')" width="140" />
+              <el-table-column prop="confidence" :label="t('history.confidence')" width="100">
+                <template #default="{ row }">
+                  {{ (row.confidence * 100).toFixed(1) }}%
+                </template>
+              </el-table-column>
+              <el-table-column prop="treatment_advice" :label="t('history.treatmentAdvice')" min-width="200" />
+            </el-table>
+          </div>
+        </div>
+      </div>
+    </el-dialog>
+
     <!-- 空状态 -->
     <div v-if="displayRecords.length === 0" class="empty-state">
       <el-icon :size="64" class="empty-icon"><Help /></el-icon>
@@ -276,12 +320,50 @@ const getTypeText = (type) => {
   return texts[type] || type;
 };
 
-const viewRecord = (record) => {
-  ElMessage.info(`${t('history.view')}: ${record.filename}`);
+// 详情弹窗状态
+const detailVisible = ref(false);
+const detailLoading = ref(false);
+const detailRecord = ref(null);
+
+const viewRecord = async (record) => {
+  detailVisible.value = true;
+  detailLoading.value = true;
+  detailRecord.value = null;
+  try {
+    const token = localStorage.getItem("token");
+    const response = await fetch(`/api/detection/${record.id}`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {}
+    });
+    const result = await response.json();
+    if (result.success && result.data) {
+      detailRecord.value = {
+        ...result.data,
+        filename: record.filename,
+        time: record.time
+      };
+    } else {
+      ElMessage.error(result.message || t('history.fetchFailed'));
+      detailVisible.value = false;
+    }
+  } catch (error) {
+    console.error("获取检测详情失败:", error);
+    ElMessage.error(t('history.fetchFailed'));
+    detailVisible.value = false;
+  } finally {
+    detailLoading.value = false;
+  }
 };
 
 const downloadRecord = (record) => {
-  ElMessage.info(`${t('history.download')}: ${record.filename}`);
+  const url = record.result_image_url || record.image_url;
+  if (!url) {
+    ElMessage.warning(t('history.noImage'));
+    return;
+  }
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = record.filename || "result.jpg";
+  a.click();
 };
 
 const deleteRecord = async (record) => {
@@ -527,6 +609,80 @@ onMounted(() => {
     display: flex;
     justify-content: center;
     margin-top: 32px;
+  }
+}
+
+.detail-dialog {
+  .detail-loading {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 60px 0;
+    gap: 16px;
+    color: var(--text-secondary);
+  }
+
+  .detail-content {
+    display: flex;
+    gap: 24px;
+    max-height: 70vh;
+  }
+
+  .detail-result-image {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    background: #f5f5f5;
+    border-radius: 8px;
+    overflow: hidden;
+
+    img {
+      max-width: 100%;
+      max-height: 70vh;
+      object-fit: contain;
+    }
+  }
+
+  .detail-side {
+    width: 420px;
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    overflow-y: auto;
+  }
+
+  .detail-info {
+    .detail-filename {
+      font-size: 16px;
+      font-weight: 600;
+      color: var(--text-primary);
+      margin-bottom: 12px;
+      word-break: break-all;
+    }
+
+    .detail-meta {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      font-size: 13px;
+      color: var(--text-secondary);
+
+      span {
+        line-height: 1.6;
+      }
+    }
+  }
+
+  .detail-boxes {
+    h4 {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text-primary);
+      margin-bottom: 12px;
+    }
   }
 }
 </style>

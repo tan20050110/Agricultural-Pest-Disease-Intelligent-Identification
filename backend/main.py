@@ -12,6 +12,8 @@ from app.api.disease import router as disease_router
 from app.api.model import router as model_router
 from app.api.auth import router as auth_router
 from app.api.camera import router as camera_router
+from app.api.disease_camera import router as disease_camera_router
+from app.api.video_detection import router as video_router
 from app.api.qa import router as qa_router
 from app.api.user import router as user_router
 from app.utils.file_utils import ensure_directories
@@ -59,6 +61,10 @@ app.include_router(model_router, prefix="/api")
 app.include_router(auth_router, prefix="/api")
 # 所有摄像头检测相关的 API 都会以 /api/camera 为前缀
 app.include_router(camera_router, prefix="/api")
+# 所有病害摄像头检测相关的 API 都会以 /api/camera/disease 为前缀
+app.include_router(disease_camera_router, prefix="/api")
+# 所有视频检测相关的 API 都会以 /api/video-detection 为前缀
+app.include_router(video_router, prefix="/api")
 # 所有AI问答相关的 API 都会以 /api/qa 为前缀
 app.include_router(qa_router, prefix="/api")
 # 所有用户管理相关的 API 都会以 /api/user 为前缀
@@ -166,8 +172,32 @@ async def startup_event():
     """应用启动时初始化"""
     import logging
     logger = logging.getLogger(__name__)
+    # 初始化数据库表
+    try:
+        from app.models.database import init_db
+        init_db()
+        logger.info("数据库表初始化完成")
+    except Exception as e:
+        logger.warning(f"数据库表初始化失败: {e}")
+
+    # 创建默认管理员账号
     seed_default_admin()
-    logger.info("模型将在首次检测时惰性加载")
+
+    # 预加载 YOLO 虫害检测模型
+    try:
+        from app.services.detection_service import detection_service
+        detection_service._load_model_smart()
+        logger.info("YOLO 虫害检测模型预加载完成")
+    except Exception as e:
+        logger.warning(f"虫害模型预加载失败（将在首次检测时加载）: {e}")
+
+    # 预加载 ResNet50 病害分类模型
+    try:
+        from app.services.disease_service import disease_service
+        disease_service._load_model()
+        logger.info("ResNet50 病害分类模型预加载完成")
+    except Exception as e:
+        logger.warning(f"病害模型预加载失败（将在首次检测时加载）: {e}")
 
 
 # =============================================================================

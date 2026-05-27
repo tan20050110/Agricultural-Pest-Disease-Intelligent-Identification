@@ -123,3 +123,31 @@ export const resumeDiseaseDetection = () => {
     method: 'post'
   })
 }
+
+/**
+ * 虫害视频实时帧检测
+ * @param {FormData} formData - 包含 file, confidence_threshold, iou_threshold
+ */
+export const detectRealtimeFrame = (formData) => {
+  return request({
+    url: '/video-detection/realtime-frame',
+    method: 'post',
+    data: formData,
+    headers: { 'Content-Type': 'multipart/form-data' },
+    timeout: 10000
+  })
+}
+
+/**
+ * 病害视频实时帧分类
+ * @param {FormData} formData - 包含 file
+ */
+export const detectDiseaseRealtimeFrame = (formData) => {
+  return request({
+    url: '/video-detection/disease-realtime-frame',
+    method: 'post',
+    data: formData,
+    headers: { 'Content-Type': 'multipart/form-data' },
+    timeout: 10000
+  })
+}

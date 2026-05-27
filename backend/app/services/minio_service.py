@@ -89,7 +89,10 @@ class _DummyMinio:
         return None
 
     def remove_object(self, bucket_name, object_name):
-        pass
+        local_dir = self._result_dir if "result" in bucket_name.lower() else self._upload_dir
+        filepath = os.path.join(local_dir, object_name)
+        if os.path.exists(filepath):
+            os.remove(filepath)
 
     def list_objects(self, bucket_name, prefix=None):
         return []

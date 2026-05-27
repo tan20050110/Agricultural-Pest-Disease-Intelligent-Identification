@@ -217,7 +217,11 @@ async def get_detection_history(
                 image_url = ""
             
             if result_filename:
-                result_url = f"/api/detection/files/agri-pest-results/{result_filename}" if minio_service.is_available else f"/static/results/{result_filename}"
+                # 根据 key 前缀判断实际存储桶：results/ 开头 → agri-pest-results，否则 → agri-pest-original
+                if record.result_image_key and record.result_image_key.startswith("results/"):
+                    result_url = f"/api/detection/files/agri-pest-results/{result_filename}" if minio_service.is_available else f"/static/results/{result_filename}"
+                else:
+                    result_url = f"/api/detection/files/agri-pest-original/{result_filename}" if minio_service.is_available else f"/static/uploads/{result_filename}"
             else:
                 result_url = ""
             
@@ -300,7 +304,11 @@ async def get_detection_by_id(
             image_url = ""
         
         if result_filename:
-            result_url = f"/api/detection/files/agri-pest-results/{result_filename}" if minio_service.is_available else f"/static/results/{result_filename}"
+            # 根据 key 前缀判断实际存储桶
+            if record.result_image_key and record.result_image_key.startswith("results/"):
+                result_url = f"/api/detection/files/agri-pest-results/{result_filename}" if minio_service.is_available else f"/static/results/{result_filename}"
+            else:
+                result_url = f"/api/detection/files/agri-pest-original/{result_filename}" if minio_service.is_available else f"/static/uploads/{result_filename}"
         else:
             result_url = ""
 
