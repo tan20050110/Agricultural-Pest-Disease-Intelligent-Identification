@@ -213,10 +213,8 @@ def seed_target_categories():
 
 
 def seed_model_versions():
-    """如果模型版本表为空，从 MinIO 和当前模型信息初始化"""
+    """如果模型版本表为空，初始化虫害和病害两个模型"""
     from app.models.database import SessionLocal, ModelVersion
-    from app.services.minio_service import minio_service
-    from app.services.detection_service import detection_service
 
     db = SessionLocal()
     try:
@@ -225,35 +223,26 @@ def seed_model_versions():
             print("[INIT] 模型版本已存在，跳过")
             return
 
-        # 从 MinIO 获取所有模型
-        models = minio_service.list_models_with_metadata()
-        count = 0
-        for model in models:
-            meta = model.get("metadata", {}) or {}
-            db.add(ModelVersion(
-                name=meta.get("name", model.get("object_name", "unknown")),
-                version=meta.get("version", "unknown"),
-                description=meta.get("description", ""),
-                model_key=model.get("object_name", ""),
+        models = [
+            ModelVersion(
+                name="agri-pest-yolo11n",
+                version="1.0.0",
+                description="YOLO11n 虫害目标检测模型，支持 102 类农业害虫检测",
+                model_key="best.pt",
                 status="active"
-            ))
-            count += 1
-
-        # 如果 MinIO 没有模型，至少记录当前加载的模型信息
-        if count == 0:
-            info = detection_service.current_model_info or {}
-            meta = info.get("metadata", {}) or {}
-            db.add(ModelVersion(
-                name=meta.get("name", "agri-pest-yolo11n"),
-                version=meta.get("version", "1.0.0"),
-                description=meta.get("description", "默认虫害检测模型"),
-                model_key=info.get("object_name", "agri-pest-yolo11n-best_v1.0.0.pt"),
+            ),
+            ModelVersion(
+                name="resnet50-disease",
+                version="1.0.0",
+                description="ResNet50 病害分类模型，支持 39 类作物病害识别（PlantVillage 数据集）",
+                model_key="best_model.pth",
                 status="active"
-            ))
-            count = 1
-
+            ),
+        ]
+        for m in models:
+            db.add(m)
         db.commit()
-        print(f"[INIT] 模型版本已初始化: {count} 条记录")
+        print(f"[INIT] 模型版本已初始化: {len(models)} 条记录（虫害 + 病害）")
     except Exception as e:
         print(f"[INIT] 初始化模型版本失败: {e}")
         db.rollback()
