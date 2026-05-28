@@ -164,6 +164,103 @@ def seed_default_admin():
         db.close()
 
 
+def seed_target_categories():
+    """如果目标类别表为空，从模型数据中初始化"""
+    from app.models.database import SessionLocal, TargetCategory
+    from app.services.detection_service import detection_service
+    from app.services.disease_service import disease_service
+
+    db = SessionLocal()
+    try:
+        existing = db.query(TargetCategory).first()
+        if existing:
+            print("[INIT] 目标类别已存在，跳过")
+            return
+
+        sort_order = 0
+        # 虫害类别（102 类）
+        for class_id, class_name in detection_service.class_names.items():
+            chinese_name = detection_service.get_class_chinese_name(class_name)
+            db.add(TargetCategory(
+                name=class_name,
+                chinese_name=chinese_name,
+                description=f"虫害: {chinese_name}",
+                color="#10b981",
+                sort_order=sort_order
+            ))
+            sort_order += 1
+
+        # 病害类别（39 类）
+        disease_service.class_names = disease_service._load_class_names()
+        for class_name in disease_service.class_names:
+            chinese_name = disease_service.DISEASE_CN_NAMES.get(class_name, class_name)
+            db.add(TargetCategory(
+                name=class_name,
+                chinese_name=chinese_name,
+                description=f"病害: {chinese_name}",
+                color="#ef4444",
+                sort_order=sort_order
+            ))
+            sort_order += 1
+
+        db.commit()
+        print(f"[INIT] 目标类别已初始化: {sort_order} 个类别")
+    except Exception as e:
+        print(f"[INIT] 初始化目标类别失败: {e}")
+        db.rollback()
+    finally:
+        db.close()
+
+
+def seed_model_versions():
+    """如果模型版本表为空，从 MinIO 和当前模型信息初始化"""
+    from app.models.database import SessionLocal, ModelVersion
+    from app.services.minio_service import minio_service
+    from app.services.detection_service import detection_service
+
+    db = SessionLocal()
+    try:
+        existing = db.query(ModelVersion).first()
+        if existing:
+            print("[INIT] 模型版本已存在，跳过")
+            return
+
+        # 从 MinIO 获取所有模型
+        models = minio_service.list_models_with_metadata()
+        count = 0
+        for model in models:
+            meta = model.get("metadata", {}) or {}
+            db.add(ModelVersion(
+                name=meta.get("name", model.get("object_name", "unknown")),
+                version=meta.get("version", "unknown"),
+                description=meta.get("description", ""),
+                model_key=model.get("object_name", ""),
+                status="active"
+            ))
+            count += 1
+
+        # 如果 MinIO 没有模型，至少记录当前加载的模型信息
+        if count == 0:
+            info = detection_service.current_model_info or {}
+            meta = info.get("metadata", {}) or {}
+            db.add(ModelVersion(
+                name=meta.get("name", "agri-pest-yolo11n"),
+                version=meta.get("version", "1.0.0"),
+                description=meta.get("description", "默认虫害检测模型"),
+                model_key=info.get("object_name", "agri-pest-yolo11n-best_v1.0.0.pt"),
+                status="active"
+            ))
+            count = 1
+
+        db.commit()
+        print(f"[INIT] 模型版本已初始化: {count} 条记录")
+    except Exception as e:
+        print(f"[INIT] 初始化模型版本失败: {e}")
+        db.rollback()
+    finally:
+        db.close()
+
+
 # =============================================================================
 # 应用启动事件
 # =============================================================================
@@ -182,6 +279,12 @@ async def startup_event():
 
     # 创建默认管理员账号
     seed_default_admin()
+
+    # 初始化目标类别
+    seed_target_categories()
+
+    # 初始化模型版本
+    seed_model_versions()
 
     # 预加载 YOLO 虫害检测模型
     try:

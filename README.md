@@ -176,23 +176,30 @@ docker-compose up -d --build
 
 ### 本地开发模式（可选）
 
-如果你想进行开发或修改代码，可以选择本地模式：
+适合修改代码实时调试，前后端代码改动自动热重载。Docker 容器仅用于运行依赖服务（PostgreSQL / MinIO / Redis）：
 
 ```bash
 # 1. 安装后端依赖
 cd backend
 pip install -r requirements.txt
 
-# 2. 启动后端（自动检测并降级为 SQLite）
-python main.py
-
-# 3. 新终端启动前端
-cd frontend
+# 2. 安装前端依赖
+cd ../frontend
 npm install
+
+# 3. 启动依赖服务（Docker）
+docker start rsod-postgres rsod-redis rsod-minio
+
+# 4. 新终端 - 启动后端（代码改动自动重载）
+cd backend
+python -m uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+
+# 5. 新终端 - 启动前端（代码改动自动热更新）
+cd frontend
 npm run dev
 ```
 
-本地模式会使用 SQLite 数据库而非 PostgreSQL，适合开发调试。
+> 访问 `http://localhost:5173` 进入前端页面，后端 API 文档在 `http://localhost:8000/docs`。
 
 ---
 
@@ -203,18 +210,19 @@ npm run dev
 | 登录 | `/login` | 用户登录，支持记住我功能 |
 | 注册 | `/register` | 新用户注册（用户名、邮箱、密码） |
 | 忘记密码 | `/forgot-password` | 密码找回（通过邮箱） |
-| 虫害检测 | `/detection` | YOLO 目标检测，识别 102 类农业害虫，支持单图、批量、图片夹、视频检测 |
-| 病害识别 | `/disease` | ResNet50 分类，识别 39 类作物病害，显示 Top-5 预测结果及防治建议 |
-| 摄像头检测 | `/camera` | 实时摄像头目标检测，实时显示 FPS、检测耗时和目标数量 |
-| 历史记录 | `/history` | 查看检测历史与详情，支持筛选和删除 |
+| 虫害检测 | `/detection` | YOLO 目标检测，识别 102 类农业害虫，支持单图、批量、摄像头、视频检测 |
+| 病害识别 | `/disease` | ResNet50 分类，识别 39 类作物病害，支持单图、批量、摄像头、视频检测 |
+| 摄像头检测 | 虫害/病害页内嵌 | 实时摄像头画面逐帧检测/分类，Canvas 绘制检测框 |
+| 视频检测 | 虫害/病害页内嵌 | 上传视频逐帧自动分析，实时叠加检测框或显示分类结果 |
+| 历史记录 | `/history` | 查看检测历史，支持弹窗查看结果图及检测目标详情，支持删除 |
 | AI 问答 | `/qa` | 智能农业知识问答，基于病虫害知识库提供智能回答 |
 | 目标库 | `/targets` | 浏览可检测的病虫草害类别，展示 9 大类 102 种害虫信息 |
 | 个人中心 | `/profile` | 用户信息管理、统计数据展示 |
 | 系统设置 | `/settings` | 主题切换（亮色/暗色/跟随系统）、语言设置（中/英文）、账户设置 |
 
-### 摄像头检测功能
+### 摄像头与视频检测功能
 
-摄像头实时检测功能支持：
+**摄像头实时检测**支持：
 
 - ✅ **实时视频流**：通过摄像头实时获取画面
 - ✅ **实时检测**：YOLO 模型实时分析视频帧
@@ -223,6 +231,13 @@ npm run dev
 - ✅ **可视化标注**：在视频画面上实时绘制检测框
 - ✅ **暂停/恢复**：支持暂停和恢复检测
 - ✅ **权限引导**：详细的摄像头权限设置指引
+
+**视频检测**支持：
+
+- ✅ **上传分析**：上传本地视频文件，自动逐帧检测
+- ✅ **虫害模式**：YOLO 实时画框标注，可调置信度阈值和帧率
+- ✅ **病害模式**：ResNet50 逐帧分类，显示 Top-5 预测
+- ✅ **即停即止**：随时停止，无需等待视频播完
 
 **首次使用摄像头时的权限设置指引**：
 
@@ -298,6 +313,9 @@ rsod-web-platform/
 │   │   │   ├── auth.py                   #       认证接口（注册/登录/忘记密码）
 │   │   │   ├── detection.py              #       虫害检测接口（单图/历史/文件代理）
 │   │   │   ├── disease.py                #       病害识别接口（单图分类/类别列表）
+│   │   │   ├── camera.py                 #       虫害摄像头实时检测接口
+│   │   │   ├── disease_camera.py         #       病害摄像头实时分类接口
+│   │   │   ├── video_detection.py        #       视频逐帧检测接口（虫害+病害）
 │   │   │   └── model.py                  #       模型管理接口
 │   │   ├── models/                       #     数据模型
 │   │   │   ├── database.py               #       ORM 模型（自动适配 PostgreSQL/SQLite）
@@ -331,7 +349,9 @@ rsod-web-platform/
 │   │   │   └── auth.js                   #     认证 API
 │   │   ├── components/                   #   公共组件
 │   │   │   ├── Header.vue                #     顶部导航栏
-│   │   │   └── Sidebar.vue               #     侧边栏（作物选择）
+│   │   │   ├── Sidebar.vue               #     侧边栏
+│   │   │   ├── CameraDetection.vue       #     摄像头实时检测组件
+│   │   │   └── VideoDetection.vue        #     视频检测组件（上传→逐帧分析）
 │   │   ├── views/                        #   页面视图
 │   │   │   ├── LoginPage.vue             #     登录页
 │   │   │   ├── RegisterPage.vue          #     注册页
@@ -401,11 +421,19 @@ rsod-web-platform/
 
 | 方法 | 路径 | 说明 |
 |------|------|------|
-| POST | `/api/camera/start` | 启动摄像头检测服务 |
-| POST | `/api/camera/detect` | 发送视频帧进行检测（Base64 编码） |
-| POST | `/api/camera/pause` | 暂停检测 |
-| POST | `/api/camera/resume` | 恢复检测 |
-| POST | `/api/camera/stop` | 停止检测服务 |
+| POST | `/api/camera/start` | 启动摄像头检测 |
+| POST | `/api/camera/detect` | 发送帧进行虫害检测 |
+| POST | `/api/camera/stop` | 停止检测 |
+| POST | `/api/camera/disease/start` | 启动病害摄像头分类 |
+| POST | `/api/camera/disease/detect` | 发送帧进行病害分类 |
+| POST | `/api/camera/disease/stop` | 停止病害分类 |
+
+### 视频检测接口
+
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| POST | `/api/video-detection/realtime-frame` | 虫害视频逐帧检测（YOLO） |
+| POST | `/api/video-detection/disease-realtime-frame` | 病害视频逐帧分类（ResNet50） |
 
 ### AI 问答接口
 
