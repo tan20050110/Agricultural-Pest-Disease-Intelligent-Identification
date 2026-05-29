@@ -362,7 +362,6 @@ const getBarClass = (index) => {
 
 const handleTabClick = (key) => {
   activeTab.value = key;
-  if (key === "video") ElMessage.info(t('detection.videoFeatureInDevelopment'));
 };
 
 const handleCameraDetect = (data) => {
@@ -397,8 +396,6 @@ const handleFileChange = async (event, tabKey) => {
       await performDiseaseDetection(files[0]);
     } else if (tabKey === "batch") {
       await performBatchDetection(Array.from(files));
-    } else if (tabKey === "video") {
-      ElMessage.info(t('detection.videoFeatureInDevelopment'));
     }
   }
   event.target.value = "";
